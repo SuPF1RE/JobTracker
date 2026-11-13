@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+node_modules/
+dist/
+.vite/
+
+.env
+.env.*
+!.env.example
+*.log
+.vscode/
