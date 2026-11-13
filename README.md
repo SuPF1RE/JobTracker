@@ -2,7 +2,7 @@
 
 A local web application for tracking job applications. It combines an ASP.NET Core API, a PostgreSQL database, and a React interface so you can keep application details and statuses in one place.
 
-The interface is currently in Russian. The application is designed for local, single-user use and does not require paid services.
+The interface supports English and Russian, with English as the default. The application is designed for local, single-user use and does not require paid services.
 
 ## Features
 
@@ -11,6 +11,7 @@ The interface is currently in Russian. The application is designed for local, si
 - Filter applications by status and search by company or position.
 - Optionally record the application date and a link to the vacancy.
 - View summary counts and switch between light and dark themes.
+- Switch between English and Russian; the chosen language and theme are remembered in the browser.
 - Keep data in PostgreSQL between application restarts.
 - See an error message if an application cannot be saved or deleted.
 
@@ -18,7 +19,7 @@ The interface is currently in Russian. The application is designed for local, si
 
 - **Backend:** C#, ASP.NET Core Web API, Entity Framework Core
 - **Database:** PostgreSQL
-- **Frontend:** React, JavaScript, Vite, CSS
+- **Frontend:** React, JavaScript, Vite, CSS, Lucide icons
 
 ## Project structure
 
