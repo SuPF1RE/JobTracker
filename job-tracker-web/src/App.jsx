@@ -1,32 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Briefcase, Plus, Search, Pencil, Trash2, ExternalLink, X, ArrowRight, Check, RefreshCw, Inbox, Moon, Sun } from "lucide-react";
+import en from "./locales/en.json";
+import ru from "./locales/ru.json";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 const statuses = ["Applied", "Interview", "Rejected", "Offer"];
-const labels = { Applied: "Отклик", Interview: "Интервью", Rejected: "Отказ", Offer: "Оффер" };
+const dictionaries = { en, ru };
+const LanguageContext = createContext((text) => text);
+const makeLabels = (t) => ({ Applied: t("applied"), Interview: t("interview"), Rejected: t("rejected"), Offer: t("offer") });
 const blankForm = () => ({ company: "", position: "", status: "Applied", appliedDate: "", vacancyUrl: "" });
 
+const icons = {
+  briefcase: Briefcase, plus: Plus, search: Search, edit: Pencil,
+  trash: Trash2, external: ExternalLink, close: X, arrow: ArrowRight,
+  check: Check, refresh: RefreshCw, inbox: Inbox, moon: Moon, sun: Sun
+};
+
 function Icon({ name, size = 18, className = "" }) {
-  const paths = {
-    briefcase: <><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></>,
-    plus: <path d="M12 5v14M5 12h14"/>,
-    search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
-    edit: <><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></>,
-    trash: <><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13h12l1-13M9 7V4h6v3"/></>,
-    external: <><path d="M14 4h6v6M20 4l-9 9"/><path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/></>,
-    close: <path d="M18 6 6 18M6 6l12 12"/>,
-    arrow: <path d="M5 12h14m-6-6 6 6-6 6"/>,
-    check: <path d="m5 12 4 4L19 6"/>,
-    refresh: <><path d="M20 11a8 8 0 0 0-14-5L4 8M4 3v5h5M4 13a8 8 0 0 0 14 5l2-2M20 21v-5h-5"/></>,
-    inbox: <><path d="M4 4h16l2 10v5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-5L4 4Z"/><path d="M2 14h6l2 3h4l2-3h6"/></>,
-    moon: <path d="M20.9 13.1A8 8 0 0 1 10.9 3.1a8 8 0 1 0 10 10Z"/>,
-    sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></>
-  };
-  return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+  const Component = icons[name];
+  return Component ? <Component size={size} className={className} strokeWidth={1.7} aria-hidden="true" /> : null;
 }
 
-async function request(url, options = {}) {
+async function request(url, options = {}, t = (text) => text) {
   const response = await fetch(url, options);
   if (!response.ok) {
-    let message = `Ошибка сервера (${response.status}).`;
+    let message = `${t("serverError")} (${response.status}).`;
     try {
       const body = await response.json();
       if (typeof body.message === "string") message = body.message;
@@ -38,9 +35,9 @@ async function request(url, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-function readableError(error) {
-  if (error instanceof TypeError) return "Не удалось связаться с API. Проверьте, запущен ли сервер.";
-  return error.message || "Что-то пошло не так. Попробуйте ещё раз.";
+function readableError(error, t) {
+  if (error instanceof TypeError) return t("couldNotConnectToThe");
+  return error.message || t("somethingWentWrongPleaseTry");
 }
 
 function formatDate(value) {
@@ -51,11 +48,14 @@ function formatDate(value) {
 }
 
 function StatusBadge({ status }) {
+  const t = useContext(LanguageContext);
+  const labels = makeLabels(t);
   const name = statuses.find((s) => s.toLowerCase() === String(status).toLowerCase());
   return <span className={`badge badge-${(name || "unknown").toLowerCase()}`}><span className="badge-dot" />{labels[name] || status}</span>;
 }
 
 function DeleteDialog({ application, deleting, onCancel, onConfirm }) {
+  const t = useContext(LanguageContext);
   const dialogRef = useRef(null);
 
   useEffect(() => {
@@ -78,16 +78,16 @@ function DeleteDialog({ application, deleting, onCancel, onConfirm }) {
       }}
     >
       <div className="delete-dialog-icon"><Icon name="trash" size={22} /></div>
-      <h2 id="delete-dialog-title">Удалить отклик?</h2>
+      <h2 id="delete-dialog-title">{t("deleteApplication")}</h2>
       <p id="delete-dialog-description">
-        Вы собираетесь удалить отклик <strong>{application.position}</strong> в компании <strong>{application.company}</strong>. Это действие нельзя отменить.
+        {t("youAreAboutToDelete")}<strong>{application.position}</strong>{t("at")}<strong>{application.company}</strong>{t("thisActionCannotBeUndone")}
       </p>
       <div className="delete-dialog-actions">
         <button type="button" className="button button-secondary" onClick={onCancel} disabled={deleting} autoFocus>
-          Отмена
+          {t("cancel")}
         </button>
         <button type="button" className="button button-danger" onClick={onConfirm} disabled={deleting}>
-          {deleting ? "Удаление…" : "Удалить отклик"}
+          {deleting ? t("deleting") : t("deleteApplication2")}
         </button>
       </div>
     </dialog>
@@ -95,6 +95,8 @@ function DeleteDialog({ application, deleting, onCancel, onConfirm }) {
 }
 
 function ApplicationForm({ initial, onCancel, onSave }) {
+  const t = useContext(LanguageContext);
+  const labels = makeLabels(t);
   const [form, setForm] = useState(() => initial ? {
     company: initial.company || "", position: initial.position || "", status: initial.status || "Applied",
     appliedDate: initial.appliedDate || "", vacancyUrl: initial.vacancyUrl || ""
@@ -111,7 +113,7 @@ function ApplicationForm({ initial, onCancel, onSave }) {
     const position = form.position.trim();
     const vacancyUrl = form.vacancyUrl.trim();
     if (!company || !position) {
-      setError("Укажите компанию и должность. Поля не могут состоять только из пробелов.");
+      setError(t("enterACompanyAndPosition"));
       return;
     }
     if (vacancyUrl) {
@@ -119,7 +121,7 @@ function ApplicationForm({ initial, onCancel, onSave }) {
         const url = new URL(vacancyUrl);
         if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error();
       } catch {
-        setError("Ссылка должна быть полным адресом, начинающимся с http:// или https://.");
+        setError(t("theLinkMustBeA"));
         return;
       }
     }
@@ -127,7 +129,7 @@ function ApplicationForm({ initial, onCancel, onSave }) {
     try {
       await onSave({ company, position, status: form.status, appliedDate: form.appliedDate || null, vacancyUrl: vacancyUrl || null });
     } catch (error) {
-      setError(`Не удалось сохранить отклик. ${readableError(error)}`);
+      setError(`${t("couldNotSaveTheApplication")}${readableError(error, t)}`);
     } finally {
       setSaving(false);
     }
@@ -135,26 +137,27 @@ function ApplicationForm({ initial, onCancel, onSave }) {
 
   return <section className="form-panel" aria-labelledby="form-title">
     <div className="form-heading">
-      <div><span className="eyebrow">{initial ? "РЕДАКТИРОВАНИЕ" : "НОВЫЙ ОТКЛИК"}</span><h2 id="form-title">{initial ? "Изменить отклик" : "Добавить отклик"}</h2><p>Все детали в одном месте.</p></div>
-      <button className="icon-button" type="button" onClick={onCancel} disabled={saving} aria-label="Закрыть форму"><Icon name="close" /></button>
+      <div><span className="eyebrow">{initial ? t("editApplication") : t("newApplication")}</span><h2 id="form-title">{initial ? t("editApplication2") : t("addApplication")}</h2><p>{t("allTheDetailsInOne")}</p></div>
+      <button className="icon-button" type="button" onClick={onCancel} disabled={saving} aria-label={t("closeForm")}><Icon name="close" /></button>
     </div>
     <form onSubmit={submit}>
       <fieldset disabled={saving}>
         <div className="form-grid">
-          <label>Компания <span className="required">*</span><input autoFocus name="company" value={form.company} onChange={change} placeholder="Например, Nord Security" required /></label>
-          <label>Должность <span className="required">*</span><input name="position" value={form.position} onChange={change} placeholder="Например, .NET Developer" required /></label>
-          <label>Статус<select name="status" value={form.status} onChange={change}>{statuses.map((status) => <option key={status} value={status}>{labels[status]}</option>)}</select></label>
-          <label>Дата отклика <span className="optional">необязательно</span><input name="appliedDate" type="date" value={form.appliedDate} onChange={change} /></label>
-          <label className="full-width">Ссылка на вакансию <span className="optional">необязательно</span><input name="vacancyUrl" type="url" value={form.vacancyUrl} onChange={change} placeholder="https://..." /></label>
+          <label>{t("company")} <span className="required">*</span><input autoFocus name="company" value={form.company} onChange={change} placeholder={t("eGNordSecurity")} required /></label>
+          <label>{t("position")} <span className="required">*</span><input name="position" value={form.position} onChange={change} placeholder={t("eGNetDeveloper")} required /></label>
+          <label>{t("status")}<select name="status" value={form.status} onChange={change}>{statuses.map((status) => <option key={status} value={status}>{labels[status]}</option>)}</select></label>
+          <label>{t("applicationDate")} <span className="optional">{t("optional")}</span><input name="appliedDate" type="date" value={form.appliedDate} onChange={change} /></label>
+          <label className="full-width">{t("jobPostingUrl")} <span className="optional">{t("optional")}</span><input name="vacancyUrl" type="url" value={form.vacancyUrl} onChange={change} placeholder="https://..." /></label>
         </div>
       </fieldset>
       {error && <div className="notice notice-error" role="alert">{error}</div>}
-      <div className="form-actions"><button type="button" className="button button-secondary" onClick={onCancel} disabled={saving}>Отмена</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? "Сохранение…" : initial ? "Сохранить изменения" : "Добавить отклик"}<Icon name="arrow" size={16}/></button></div>
+      <div className="form-actions"><button type="button" className="button button-secondary" onClick={onCancel} disabled={saving}>{t("cancel")}</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? t("saving") : initial ? t("saveChanges") : t("addApplication")}<Icon name="arrow" size={16}/></button></div>
     </form>
   </section>;
 }
 
-export default function App() {
+function AppContent({ language, setLanguage, t }) {
+  const labels = makeLabels(t);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -183,16 +186,19 @@ export default function App() {
     }
   }, [theme]);
 
+  const translationRef = useRef(t);
+  translationRef.current = t;
   const load = useCallback(async (signal) => {
+    const t = translationRef.current;
     setLoading(true);
     setLoadError("");
     try {
-      const data = await request("/api/jobapplications", { signal });
-      if (!Array.isArray(data)) throw new Error("API вернул данные в неожиданном формате.");
+      const data = await request("/api/jobapplications", { signal }, t);
+      if (!Array.isArray(data)) throw new Error(t("theApiReturnedDataIn"));
       setItems(data);
       setSelectedId(null);
     } catch (error) {
-      if (error.name !== "AbortError") setLoadError(readableError(error));
+      if (error.name !== "AbortError") setLoadError(readableError(error, t));
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -226,7 +232,7 @@ export default function App() {
       method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(isEdit ? { ...payload, id: form.item.id } : payload)
-    });
+    }, t);
     if (isEdit) {
       const updated = saved && typeof saved === "object" && saved.id === form.item.id
         ? saved : { ...form.item, ...payload };
@@ -234,7 +240,7 @@ export default function App() {
       setSelectedId(form.item.id);
     } else {
       if (!saved || typeof saved !== "object" || saved.id == null) {
-        throw new Error("API не вернул созданный отклик. Обновите страницу перед повторной отправкой.");
+        throw new Error(t("theApiDidNotReturn"));
       }
       setItems((current) => [saved, ...current]);
       setSelectedId(saved.id);
@@ -243,7 +249,7 @@ export default function App() {
     if (filter !== "All" && filter.toLowerCase() !== payload.status.toLowerCase()) setFilter("All");
     if (search.trim() && !`${payload.company} ${payload.position}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) setSearch("");
     setForm(null);
-    setSuccess(isEdit ? "Изменения сохранены." : "Отклик добавлен.");
+    setSuccess(isEdit ? t("changesSaved") : t("applicationAdded"));
   }
 
   async function removeSelected() {
@@ -253,12 +259,12 @@ export default function App() {
     setActionError("");
     setSuccess("");
     try {
-      await request(`/api/jobapplications/${id}`, { method: "DELETE" });
+      await request(`/api/jobapplications/${id}`, { method: "DELETE" }, t);
       setItems((current) => current.filter((item) => item.id !== id));
       setSelectedId((current) => current === id ? null : current);
-      setSuccess("Отклик удалён.");
+      setSuccess(t("applicationDeleted"));
     } catch (error) {
-      setActionError(`Не удалось удалить отклик. ${readableError(error)}`);
+      setActionError(`${t("couldNotDeleteTheApplication")}${readableError(error, t)}`);
     } finally {
       setDeleting(false);
       setPendingDelete(null);
@@ -266,28 +272,28 @@ export default function App() {
   }
 
   return <div className="app-shell">
-    <header className="topbar"><div className="topbar-inner"><a className="brand" href="/" aria-label="Job Tracker — на главную"><span className="brand-icon"><Icon name="briefcase" size={19}/></span><span>job<span className="brand-muted">tracker</span><span className="brand-dot">.</span></span></a><div className="topbar-controls"><div className="topbar-right"><span className="local-dot"/><span>Ваше локальное пространство</span></div><button type="button" className="theme-toggle" onClick={() => setTheme((current) => current === "light" ? "dark" : "light")} aria-label={theme === "light" ? "Включить тёмную тему" : "Включить светлую тему"} aria-pressed={theme === "dark"}><Icon name={theme === "light" ? "moon" : "sun"} size={17}/><span>{theme === "light" ? "Тёмная тема" : "Светлая тема"}</span></button></div></div></header>
+    <header className="topbar"><div className="topbar-inner"><a className="brand" href="/" aria-label={t("jobTrackerHome")}><span className="brand-icon"><Icon name="briefcase" size={19}/></span><span>job<span className="brand-muted">tracker</span><span className="brand-dot">.</span></span></a><div className="topbar-controls"><button type="button" className="theme-toggle language-toggle" onClick={() => setLanguage((current) => current === "en" ? "ru" : "en")} aria-label={t("switchLanguage")}>{language === "en" ? "RU" : "EN"}</button><div className="topbar-right"><span className="local-dot"/><span>{t("yourLocalWorkspace")}</span></div><button type="button" className="theme-toggle" onClick={() => setTheme((current) => current === "light" ? "dark" : "light")} aria-label={theme === "light" ? t("switchToDarkTheme") : t("switchToLightTheme")} aria-pressed={theme === "dark"}><Icon name={theme === "light" ? "moon" : "sun"} size={17}/><span>{theme === "light" ? t("darkMode") : t("lightMode")}</span></button></div></div></header>
     <main className="page">
-      <div className="page-heading"><div><div className="breadcrumb">РАБОЧЕЕ ПРОСТРАНСТВО <span>/</span> ОТКЛИКИ</div><h1>Мои отклики<span className="heading-dot">.</span></h1><p>Все возможности, за которыми стоит следить.</p></div><button className="button button-primary add-button" type="button" onClick={() => openForm("add")} disabled={!!form || deleting || loading || !!loadError}><Icon name="plus" size={19}/> Добавить отклик</button></div>
+      <div className="page-heading"><div><div className="breadcrumb">{t("workspace")} <span>/</span> {t("applications")}</div><h1>{t("myApplications")}<span className="heading-dot">.</span></h1><p>{t("keepTrackOfEveryOpportunity")}</p></div><button className="button button-primary add-button" type="button" onClick={() => openForm("add")} disabled={!!form || deleting || loading || !!loadError}><Icon name="plus" size={19}/> {t("addApplication")}</button></div>
 
-      {loading ? <div className="loading-state" role="status"><span className="spinner"/> Загружаем отклики…</div> : loadError ? <div className="load-error" role="alert"><div className="empty-icon"><Icon name="refresh" size={22}/></div><h2>Не удалось загрузить отклики</h2><p>{loadError}</p><button className="button button-secondary" onClick={() => load()}><Icon name="refresh" size={16}/> Попробовать снова</button></div> : <>
-        <div className="stats" aria-label="Статистика откликов">
-          <div className="stat-card"><span>ВСЕГО ОТКЛИКОВ</span><strong>{items.length}</strong><small>Все сохранённые вакансии</small></div>
-          <div className="stat-card"><span><i className="stat-dot blue"/>ОТКЛИК</span><strong>{count("Applied")}</strong><small>Ожидают ответа</small></div>
-          <div className="stat-card"><span><i className="stat-dot amber"/>ИНТЕРВЬЮ</span><strong>{count("Interview")}</strong><small>Следующий этап</small></div>
-          <div className="stat-card"><span><i className="stat-dot green"/>ОФФЕР</span><strong>{count("Offer")}</strong><small>Полученные предложения</small></div>
+      {loading ? <div className="loading-state" role="status"><span className="spinner"/> {t("loadingApplications")}</div> : loadError ? <div className="load-error" role="alert"><div className="empty-icon"><Icon name="refresh" size={22}/></div><h2>{t("couldNotLoadApplications")}</h2><p>{loadError}</p><button className="button button-secondary" onClick={() => load()}><Icon name="refresh" size={16}/> {t("tryAgain")}</button></div> : <>
+        <div className="stats" aria-label={t("applicationStatistics")}>
+          <div className="stat-card"><span>{t("totalApplications")}</span><strong>{items.length}</strong><small>{t("allSavedApplications")}</small></div>
+          <div className="stat-card"><span><i className="stat-dot blue"/>{t("applied2")}</span><strong>{count("Applied")}</strong><small>{t("awaitingAResponse")}</small></div>
+          <div className="stat-card"><span><i className="stat-dot amber"/>{t("interview2")}</span><strong>{count("Interview")}</strong><small>{t("nextStage")}</small></div>
+          <div className="stat-card"><span><i className="stat-dot green"/>{t("offer2")}</span><strong>{count("Offer")}</strong><small>{t("offersReceived")}</small></div>
         </div>
         {form && <ApplicationForm key={form.mode === "edit" ? `edit-${form.item.id}` : "add"} initial={form.item} onCancel={() => setForm(null)} onSave={save}/>}
-        {actionError && <div className="notice notice-error action-notice" role="alert">{actionError}<button className="notice-close" onClick={() => setActionError("")} aria-label="Закрыть сообщение">×</button></div>}
-        {success && <div className="notice notice-success action-notice" role="status"><Icon name="check" size={16}/>{success}<button className="notice-close" onClick={() => setSuccess("")} aria-label="Закрыть сообщение">×</button></div>}
+        {actionError && <div className="notice notice-error action-notice" role="alert">{actionError}<button className="notice-close" onClick={() => setActionError("")} aria-label={t("dismissMessage")}>×</button></div>}
+        {success && <div className="notice notice-success action-notice" role="status"><Icon name="check" size={16}/>{success}<button className="notice-close" onClick={() => setSuccess("")} aria-label={t("dismissMessage")}>×</button></div>}
         <section className="list-card" aria-labelledby="list-title">
-          <div className="list-heading"><div><h2 id="list-title">Список откликов <span className="count-pill">{visibleItems.length}</span></h2><p>Выберите строку, чтобы изменить или удалить отклик.</p></div><div className="row-actions"><button className="button button-secondary button-small" onClick={() => openForm("edit", selected)} disabled={!selected || !!form || deleting}><Icon name="edit" size={16}/> Изменить</button><button className="button button-secondary button-small delete-button" onClick={() => setPendingDelete(selected)} disabled={!selected || !!form || deleting}><Icon name="trash" size={16}/> {deleting ? "Удаление…" : "Удалить"}</button></div></div>
-          <div className="filters"><div className="filter-tabs" role="group" aria-label="Фильтр по статусу">{[["All", "Все"], ...statuses.map((s) => [s, labels[s]])].map(([value, label]) => <button type="button" key={value} className={`filter-tab ${filter === value ? "active" : ""}`} aria-pressed={filter === value} onClick={() => changeFilter(value)} disabled={!!form}>{label}</button>)}</div><label className="search"><Icon name="search" size={17}/><span className="sr-only">Поиск по компании или должности</span><input value={search} onChange={(event) => changeSearch(event.target.value)} placeholder="Поиск по откликам" disabled={!!form}/></label></div>
-          {visibleItems.length === 0 ? <div className="empty-state"><div className="empty-icon"><Icon name={items.length ? "search" : "inbox"} size={23}/></div><h3>{items.length ? "Ничего не найдено" : "Здесь пока пусто"}</h3><p>{items.length ? "Попробуйте изменить фильтр или поисковый запрос." : "Добавьте первый отклик, чтобы следить за его статусом."}</p>{!items.length && <button className="button button-secondary" onClick={() => openForm("add")} disabled={!!form}><Icon name="plus" size={16}/> Добавить отклик</button>}</div> : <div className="table-wrap"><table><thead><tr><th>КОМПАНИЯ</th><th>ДОЛЖНОСТЬ</th><th>СТАТУС</th><th>ДАТА ОТКЛИКА</th><th>ВАКАНСИЯ</th></tr></thead><tbody>{visibleItems.map((item) => <tr key={item.id} tabIndex={form ? -1 : 0} aria-selected={selectedId === item.id} className={selectedId === item.id ? "selected" : ""} onClick={() => { if (!form && !deleting) setSelectedId(item.id); }} onKeyDown={(event) => { if (event.target === event.currentTarget && !form && !deleting && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelectedId(item.id); } }}><td><div className="company-cell"><span className="company-avatar">{(item.company || "?").trim().charAt(0).toUpperCase()}</span><span>{item.company}</span></div></td><td>{item.position}</td><td><StatusBadge status={item.status}/></td><td className="muted-cell">{formatDate(item.appliedDate)}</td><td>{item.vacancyUrl ? <a className="vacancy-link" href={item.vacancyUrl} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>Открыть <Icon name="external" size={14}/></a> : <span className="muted-cell">—</span>}</td></tr>)}</tbody></table></div>}
-          <div className="list-footer"><span>{visibleItems.length === items.length ? `Всего откликов: ${items.length}` : `Показано ${visibleItems.length} из ${items.length}`}</span><span>Данные хранятся локально <span className="footer-dot">●</span></span></div>
+          <div className="list-heading"><div><h2 id="list-title">{t("applications2")} <span className="count-pill">{visibleItems.length}</span></h2><p>{t("selectARowToEdit")}</p></div><div className="row-actions"><button className="button button-secondary button-small" onClick={() => openForm("edit", selected)} disabled={!selected || !!form || deleting}><Icon name="edit" size={16}/> {t("edit")}</button><button className="button button-secondary button-small delete-button" onClick={() => setPendingDelete(selected)} disabled={!selected || !!form || deleting}><Icon name="trash" size={16}/> {deleting ? t("deleting") : t("delete")}</button></div></div>
+          <div className="filters"><div className="filter-tabs" role="group" aria-label={t("filterByStatus")}>{[["All", t("all")], ...statuses.map((s) => [s, labels[s]])].map(([value, label]) => <button type="button" key={value} className={`filter-tab ${filter === value ? "active" : ""}`} aria-pressed={filter === value} onClick={() => changeFilter(value)} disabled={!!form}>{label}</button>)}</div><label className="search"><Icon name="search" size={17}/><span className="sr-only">{t("searchByCompanyOrPosition")}</span><input value={search} onChange={(event) => changeSearch(event.target.value)} placeholder={t("searchApplications")} disabled={!!form}/></label></div>
+          {visibleItems.length === 0 ? <div className="empty-state"><div className="empty-icon"><Icon name={items.length ? "search" : "inbox"} size={23}/></div><h3>{items.length ? t("noResultsFound") : t("noApplicationsYet")}</h3><p>{items.length ? t("tryChangingTheFilterOr") : t("addYourFirstApplicationTo")}</p>{!items.length && <button className="button button-secondary" onClick={() => openForm("add")} disabled={!!form}><Icon name="plus" size={16}/> {t("addApplication")}</button>}</div> : <div className="table-wrap"><table><thead><tr><th>{t("company2")}</th><th>{t("position2")}</th><th>{t("status2")}</th><th>{t("applicationDate2")}</th><th>{t("jobPosting")}</th></tr></thead><tbody>{visibleItems.map((item) => <tr key={item.id} tabIndex={form ? -1 : 0} aria-selected={selectedId === item.id} className={selectedId === item.id ? "selected" : ""} onClick={() => { if (!form && !deleting) setSelectedId(item.id); }} onKeyDown={(event) => { if (event.target === event.currentTarget && !form && !deleting && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelectedId(item.id); } }}><td><div className="company-cell"><span className="company-avatar">{(item.company || "?").trim().charAt(0).toUpperCase()}</span><span>{item.company}</span></div></td><td>{item.position}</td><td><StatusBadge status={item.status}/></td><td className="muted-cell">{formatDate(item.appliedDate)}</td><td>{item.vacancyUrl ? <a className="vacancy-link" href={item.vacancyUrl} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>{t("open")} <Icon name="external" size={14}/></a> : <span className="muted-cell">—</span>}</td></tr>)}</tbody></table></div>}
+          <div className="list-footer"><span>{(visibleItems.length === items.length ? t("totalCount") : t("shownCount")).replace("{shown}", visibleItems.length).replace("{total}", items.length)}</span><span>{t("dataStoredLocally")} <span className="footer-dot">●</span></span></div>
         </section>
       </>}
-      <footer className="page-footer"><span>JOB TRACKER <span className="brand-dot">●</span></span><span>Ваш путь к следующей возможности.</span></footer>
+      <footer className="page-footer"><span>JOB TRACKER <span className="brand-dot">●</span></span><span>{t("yourJourneyToTheNext")}</span></footer>
     </main>
     {pendingDelete && (
       <DeleteDialog
@@ -298,4 +304,18 @@ export default function App() {
       />
     )}
   </div>;
+}
+
+
+export default function App() {
+  const [language, setLanguage] = useState(() => {
+    try { return localStorage.getItem("jobTrackerLanguage") === "ru" ? "ru" : "en"; }
+    catch { return "en"; }
+  });
+  useEffect(() => {
+    document.documentElement.lang = language;
+    try { localStorage.setItem("jobTrackerLanguage", language); } catch { /* Storage may be unavailable. */ }
+  }, [language]);
+  const t = useCallback((text) => dictionaries[language][text] ?? text, [language]);
+  return <LanguageContext.Provider value={t}><AppContent language={language} setLanguage={setLanguage} t={t} /></LanguageContext.Provider>;
 }
